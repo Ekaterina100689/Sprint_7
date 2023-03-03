@@ -3,6 +3,7 @@ import java.io.File;
 import io.qameta.allure.junit4.DisplayName;
 import io.restassured.response.Response;
 import io.restassured.RestAssured;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import static org.hamcrest.CoreMatchers.equalTo;
@@ -11,6 +12,8 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import api.client.CourierClient;
 
 public class CourierLoginTest {
+    private Response correctLoginCourierResponse;
+
     @Before
     public void setUp() {
         RestAssured.baseURI = "http://qa-scooter.praktikum-services.ru";
@@ -37,11 +40,7 @@ public class CourierLoginTest {
                 .statusCode(200)
                 .and()
                 .assertThat().body("id", notNullValue());
-        // delete courier
-        int courierId = client.parseCourierIdFromLoginCourierResponse(loginCourierResponse);
-        client.getDeleteCourierResponseWhenCorrectDeletion(courierId)
-                .then()
-                .statusCode(200);
+        correctLoginCourierResponse = loginCourierResponse;
     }
 
 
@@ -59,6 +58,7 @@ public class CourierLoginTest {
                 .statusCode(400)
                 .and()
                 .assertThat().body("message", equalTo("Недостаточно данных для входа"));
+        correctLoginCourierResponse = null;
     }
 
     @Test
@@ -71,6 +71,7 @@ public class CourierLoginTest {
                 .statusCode(404)
                 .and()
                 .assertThat().body("message", equalTo("Учетная запись не найдена"));
+        correctLoginCourierResponse = null;
     }
 
     @Test
@@ -85,24 +86,31 @@ public class CourierLoginTest {
                 .statusCode(201)
                 .and()
                 .assertThat().body("ok", equalTo(true));
-        // try to log in with not correct password
-        client.getLoginCourierResponseWhenTryToLoginWithNotExistingCredentials(jsonNotCorrectData)
-                .then()
-                .statusCode(404)
-                .and()
-                .assertThat().body("message", equalTo("Учетная запись не найдена"));
-        // log in courier with correct data
+        // check that log in courier with correct data works correct
         Response loginCourierResponse = client.getLoginCourierResponseWhenCorrectLogin(jsonCorrectData);
         loginCourierResponse
                 .then()
                 .statusCode(200)
                 .and()
                 .assertThat().body("id", notNullValue());
-        // delete courier
-        int courierId = client.parseCourierIdFromLoginCourierResponse(loginCourierResponse);
-        client.getDeleteCourierResponseWhenCorrectDeletion(courierId)
+        // try to log in with not correct password
+        client.getLoginCourierResponseWhenTryToLoginWithNotExistingCredentials(jsonNotCorrectData)
                 .then()
-                .statusCode(200);
+                .statusCode(404)
+                .and()
+                .assertThat().body("message", equalTo("Учетная запись не найдена"));
+        correctLoginCourierResponse = loginCourierResponse;
     }
 
+    @After
+    public void tearDown() throws Exception {
+        if (correctLoginCourierResponse != null) {
+            // delete courier
+            CourierClient client = new CourierClient();
+            int courierId = client.parseCourierIdFromLoginCourierResponse(correctLoginCourierResponse);
+            client.getDeleteCourierResponseWhenCorrectDeletion(courierId)
+                    .then()
+                    .statusCode(200);
+        }
+    }
 }

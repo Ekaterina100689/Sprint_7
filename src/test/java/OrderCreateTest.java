@@ -21,7 +21,7 @@ public class OrderCreateTest {
 
     private final List<String> color;
 
-    @Parameterized.Parameters
+    @Parameterized.Parameters(name="Цвет самоката. Тестовые данные: {0}.")
     public static Collection<Object[]> data() {
         return Arrays.asList(new Object[][] {
                 { List.of("BLACK", "GREY")},
